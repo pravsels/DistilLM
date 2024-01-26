@@ -1,2 +1,2 @@
-language model for accelerating creation and understanding of 
+language model for accelerating the creation of interactive, easily understandable
 scientific articles. 
