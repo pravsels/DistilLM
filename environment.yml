@@ -1,0 +1,15 @@
+name: dlm 
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - manim
+  - streamlit
+  - pip
+  - pip:
+      - openai==0.26
+      - torch 
+      - torchvision 
+      - torchaudio
+      - transformers

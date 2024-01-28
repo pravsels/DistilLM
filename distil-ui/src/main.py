@@ -2,16 +2,17 @@ import os
 import subprocess
 import streamlit as st
 from manim import *
-import openai
-from openai.error import AuthenticationError
 from PIL import Image
 from utils import *
 
-icon = Image.open(os.path.dirname(__file__) + '/icon.png')
+import torch 
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.utils import logging
 
+# icon = Image.open(os.path.dirname(__file__) + '/icon.png')
 st.set_page_config(
     page_title="DistilLM",
-    page_icon=icon,
+    # page_icon=icon,
 )
 
 styl = f"""
@@ -26,36 +27,44 @@ st.markdown(styl, unsafe_allow_html=True)
 
 prompt = st.text_area("Write your math animation concept here. Use simple words.",
                       "Draw a blue circle and convert it to a red square", 
-                      max_chars=240,
                       key="prompt_input")
 
-openai_api_key = ""
+model_names = ["microsoft/DialoGPT-small", 
+               "microsoft/DialoGPT-medium", 
+               "microsoft/DialoGPT-large"]
+use_model_index = 1 
+model_name = model_names[use_model_index]
 
-openai_model = None 
+tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side='left')
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+def query_lm(input_text, history=None):
+    new_user_input_ids = tokenizer.encode(input_text + tokenizer.eos_token, 
+                                          return_tensors='pt')
+
+    bot_input_ids = torch.cat([history, 
+                              new_user_input_ids], 
+                              dim=-1) if history is not None else new_user_input_ids
+
+    # generated a response while limiting the total chat history to 1000 tokens, 
+    chat_history_ids = model.generate(bot_input_ids, 
+                                      max_length=1000, 
+                                      pad_token_id=tokenizer.eos_token_id)
+
+    return tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], 
+                            skip_special_tokens=True), chat_history_ids
+
 
 st.session_state.task_running = False
-generate_video = st.button("Animate", type="primary", disabled=st.session_state.task_running)
+generate_video = st.button("Animate", type="primary", 
+                            disabled=st.session_state.task_running)
 show_code = True
-
+show_reply = True
 code_response = ""
 
 if generate_video:
-
-  if not openai_model:
-    openai_model = "GPT-3.5-Turbo"
-
   if not prompt:
     st.error("Error: Please write a prompt to generate the video.")
-    st.stop()
-
-  # If prompt is less than 10 characters, it will be rejected
-  if len(prompt) < 10:
-    st.error("Error: Your prompt is too short. Please write a longer prompt.")
-    st.stop()
-
-  # If prompt exceeds 240 characters, it will be truncated
-  if len(prompt) > 240 and not openai_api_key:
-    st.error("Error: Your prompt is longer than 240 characters. Please shorten it.")
     st.stop()
 
   # Prompt must be trimmed of spaces at the beginning and end
@@ -66,58 +75,22 @@ if generate_video:
   prompt = prompt.replace("'", "")
   prompt = prompt.replace("\\", "")
 
-  # If user has their own API key, increase max tokens by 3x
-  if not openai_api_key:
-    max_tokens = 400
-  else:
-    max_tokens = 1200
-
-  # If user has their own API key, use it
-  if not openai_api_key:
-    try:
-      # If there is OPENAI_API_KEY in the environment variables, use it
-      # Otherwise, use Streamlit secrets variable
-      if os.environ["OPENAI_KEY"]:
-        openai_api_key = os.environ["OPENAI_KEY"]
-      else:
-        openai_api_key = st.secrets["OPENAI_KEY"]
-    except:
-      st.error("Error: Sorry, I disabled my OpenAI API key (the budget is over). ")
-      st.stop()
-  else:
-    try:
-      openai.api_key = openai_api_key
-    except AuthenticationError:
-      st.error(
-          "Error: The OpenAI API key is invalid. Please check if it's correct.")
-      st.stop()
-    except:
-      st.error(
-          "Error: We couldn't authenticate your OpenAI API key. Please check if it's correct.")
-      st.stop()
-
   try:
     st.session_state.task_running = True
-    response = openai.ChatCompletion.create(
-        model=openai_model.lower(),
-        messages=[
-            {"role": "system", "content": GPT_SYSTEM_INSTRUCTIONS},
-            {"role": "user", "content": wrap_prompt(prompt)}
-        ],
-        max_tokens=max_tokens
-    )
+    reply_text, history_new = query_lm(prompt)
+
   except:
-    if openai_model.lower() == "gpt-4":
-      st.error(
-          "Error: This is likely a rate limit error for GPT-4. Currently OpenAI accepts 25 requests every 3 hours for GPT-4. This means OpenAI will start rejecting some requests randomly. There are two solutions: Use GPT-3.5-Turbo, or use your own OpenAI API key.")
-      st.stop()
-    else:
-      st.error(
-          "Error: We couldn't generate the generated code. Please reload the page, or try again later")
-      st.stop()
+    st.error(
+        "Error: We couldn't animate the generated code. Please reload the page, or try again later")
+    st.stop()
 
   code_response = extract_construct_code(
-      extract_code(response.choices[0].message.content))
+      extract_code(reply_text))
+
+  if show_reply:
+    st.text_area(label="Raw reply from LM: ",
+                 value=reply_text,
+                 key="reply_text")
 
   if show_code:
     st.text_area(label="Code generated: ",
@@ -134,7 +107,7 @@ if generate_video:
     with open("GenScene.py", "w") as f:
       f.write(create_file_content(code_response))
   except:
-    st.error("Error: We couldn't create the generated code in the Python file. Please reload the page, or try again later")
+    st.error("Error: We couldn't create the generated code in the Python file.")
     st.stop()
 
   COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir . --custom_folders video_dir"
@@ -147,7 +120,8 @@ if generate_video:
   except Exception as e:
     problem_to_render = True
     st.error(
-        f"Error: Apparently LLM generated code that Manim can't process.")
+        f"Error: Manim can't render the LM generated code.")
+
   if not problem_to_render:
     try:
       video_file = open(os.path.dirname(__file__) + '/../GenScene.mp4', 'rb')
@@ -158,6 +132,7 @@ if generate_video:
     except:
       st.error(
           "Error: Something went wrong showing your video. Please reload the page.")
+
   try:
     python_file = open(os.path.dirname(__file__) + '/../GenScene.py', 'rb')
     st.download_button("Download scene in Python",
