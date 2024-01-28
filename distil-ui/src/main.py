@@ -29,14 +29,15 @@ prompt = st.text_area("Write your math animation concept here. Use simple words.
                       "Draw a blue circle and convert it to a red square", 
                       key="prompt_input")
 
-model_names = ["microsoft/DialoGPT-small", 
+base_model = 'deepseek-ai/deepseek-coder-6.7b-instruct'
+model_names = ["pravsels/deepseek-coder-6.7b-instruct-finetuned-manimation", 
                "microsoft/DialoGPT-medium", 
                "microsoft/DialoGPT-large"]
-use_model_index = 1 
+use_model_index = 0
 model_name = model_names[use_model_index]
 
-tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side='left')
-model = AutoModelForCausalLM.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(base_model, padding_side='left')
+model = AutoModelForCausalLM.from_pretrained(base_model)
 
 def query_lm(input_text, history=None):
     new_user_input_ids = tokenizer.encode(input_text + tokenizer.eos_token, 
