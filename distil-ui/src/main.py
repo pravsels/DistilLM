@@ -26,22 +26,19 @@ styl = f"""
 st.markdown(styl, unsafe_allow_html=True)
 
 prompt = st.text_area("Write your math animation concept here. Use simple words.",
-                      "Draw a blue circle and convert it to a red square", 
+                      "Write manim code to draw a blue circle and convert it to a red square", 
                       key="prompt_input")
 
 base_model = 'deepseek-ai/deepseek-coder-6.7b-instruct'
-model_names = ["pravsels/deepseek-coder-6.7b-instruct-finetuned-manimation", 
-               "microsoft/DialoGPT-medium", 
-               "microsoft/DialoGPT-large"]
-use_model_index = 0
-model_name = model_names[use_model_index]
+adapter_names = ["pravsels/deepseek-coder-6.7b-instruct-finetuned-manimation"]
+adapter_index = 0
+adapter_name = adapter_names[adapter_index]
 
 tokenizer = AutoTokenizer.from_pretrained(base_model, 
-                                          trust_remote_code=True, 
                                           padding_side='left')
-model = AutoModelForCausalLM.from_pretrained(base_model, 
-                                            trust_remote_code=True, 
+model = AutoModelForCausalLM.from_pretrained(base_model,  
                                             torch_dtype=torch.bfloat16)
+model.load_adapter(adapter_name)
 
 def query_lm(input_text, history=None, generate_size=128):
     new_user_input_ids = tokenizer.encode(tokenizer.eos_token + input_text, 
