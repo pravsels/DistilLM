@@ -36,11 +36,15 @@ model_names = ["pravsels/deepseek-coder-6.7b-instruct-finetuned-manimation",
 use_model_index = 0
 model_name = model_names[use_model_index]
 
-tokenizer = AutoTokenizer.from_pretrained(base_model, padding_side='left')
-model = AutoModelForCausalLM.from_pretrained(base_model)
+tokenizer = AutoTokenizer.from_pretrained(base_model, 
+                                          trust_remote_code=True, 
+                                          padding_side='left')
+model = AutoModelForCausalLM.from_pretrained(base_model, 
+                                            trust_remote_code=True, 
+                                            torch_dtype=torch.bfloat16)
 
-def query_lm(input_text, history=None):
-    new_user_input_ids = tokenizer.encode(input_text + tokenizer.eos_token, 
+def query_lm(input_text, history=None, generate_size=128):
+    new_user_input_ids = tokenizer.encode(tokenizer.eos_token + input_text, 
                                           return_tensors='pt')
 
     bot_input_ids = torch.cat([history, 
@@ -49,7 +53,7 @@ def query_lm(input_text, history=None):
 
     # generated a response while limiting the total chat history to 1000 tokens, 
     chat_history_ids = model.generate(bot_input_ids, 
-                                      max_length=1000, 
+                                      max_length=generate_size, 
                                       pad_token_id=tokenizer.eos_token_id)
 
     return tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], 
