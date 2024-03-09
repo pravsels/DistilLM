@@ -95,10 +95,6 @@ elif st.session_state.model_choice == "Claude":
                             api_key=anthropic_api_key,
                            )
 
-# prompt = st.text_area("Write your math animation concept here. Use simple words.",
-#                       "Write manim code to draw a blue circle and convert it to a red square",
-#                       key="prompt_input")
-
 def toggle():
     st.session_state.animate = not st.session_state.animate
 
@@ -123,7 +119,7 @@ for message in st.session_state.messages:
 
 import time 
 # user input 
-if prompt := st.chat_input("What is up ?"):
+if prompt := st.chat_input("It's manim time!"):
     with st.chat_message('user'):
         st.markdown(prompt)
     # add message to chat history
