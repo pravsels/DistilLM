@@ -24,11 +24,17 @@ def query_llm(input_text, history=None):
         reply_text, history = query_llm(input_text)
     return reply_text, history
 
-def query_llm_api(input_text, history=None):
+def query_llm_api(input_text, history=None, stream=False):
     if st.session_state.model_choice == "GPT":
-        yield query_gpt(openai_client, input_text, history)
+        return query_gpt(openai_client, 
+                         input_text, 
+                         history, 
+                         stream)
     elif st.session_state.model_choice == "Claude":
-        yield query_claude(anthropic_client, input_text, history)
+        return query_claude(anthropic_client, 
+                            input_text, 
+                            history, 
+                            stream)
 
 # Load API keys from local JSON files
 api_keys_file = os.path.join(os.path.dirname(__file__), 'api_keys.json')
@@ -73,7 +79,6 @@ elif st.session_state.model_choice == "GPT":
 
 elif st.session_state.model_choice == "Claude":
     query_func = query_llm_api
-    print('IN CLAUDE SECTION')
     # Check if Anthropic API key is already saved
     if 'anthropic_api_key' not in api_keys:
         anthropic_api_key = st.text_input("Enter your Anthropic API Key", type="password")
@@ -99,11 +104,6 @@ def toggle():
     st.session_state.animate = not st.session_state.animate
 
 st.session_state.animate = False
-generate_video = None 
-# generate_video = st.button("Animate", type="primary", on_click=toggle,
-#                             disabled=st.session_state.animate)
-show_code = True
-show_reply = True
 code_response = ""
 
 ######## CHAT SECTION ########
@@ -117,7 +117,6 @@ for message in st.session_state.messages:
     with st.chat_message(message['role']):
         st.markdown(message['content'])
 
-import time 
 # user input 
 if prompt := st.chat_input("It's manim time!"):
     with st.chat_message('user'):
@@ -127,43 +126,30 @@ if prompt := st.chat_input("It's manim time!"):
 
     # response from bot 
     with st.chat_message('assistant'):
-        response = st.write_stream(query_func(prompt, st.session_state.messages))
+        response = query_func(prompt, st.session_state.messages, stream=True)
+        if st.session_state.model_choice == 'GPT':
+            ws_response = st.write_stream(response)
+        elif st.session_state.model_choice == 'Claude':
+            # Convert Claude's stream to a generator
+            response_generator = claude_stream_to_generator(response)
+            ws_response = st.write_stream(response_generator)
+
     # add bot response to history 
-    st.session_state.messages.append({'role': 'assistant', 'content': response})
+    st.session_state.messages.append({'role': 'assistant', 'content': ws_response})
+
+
+# Generate animation section 
+generate_video = st.button("Animate", type="primary", 
+                            on_click=toggle,
+                            disabled=st.session_state.animate)
 
 if generate_video:
-    if not prompt:
-        st.error("Error: Please write a prompt to generate the video.")
-        st.stop()
+    st.session_state.animate = True 
 
-    # Prompt must be trimmed of spaces at the beginning and end
-    prompt = prompt.strip()
+    latest_reply = st.session_state.messages[-1]['content']
 
-    # Remove ", ', \ characters
-    prompt = prompt.replace('"', '')
-    prompt = prompt.replace("'", "")
-    prompt = prompt.replace("\\", "")
-
-    try:
-        reply_text, history_new = query_lm(prompt)
-        print('REPLY FROM LM FUNC : ', reply_text)
-    except:
-        st.error(
-            "Error: We couldn't animate the generated code. Please reload the page, or try again later")
-        st.stop()
-
-    code_response = extract_construct_code(extract_code(reply_text))
+    code_response = extract_construct_code(extract_code(latest_reply))
     print('code response : ', code_response)
-
-    if show_reply:
-        st.text_area(label="Raw reply from LM: ",
-                        value=reply_text,
-                        key="reply_text")
-
-    if show_code:
-        st.text_area(label="Code generated: ",
-                    value=code_response,
-                    key="code_input")
 
     print('CURRENT DIR : ', os.path.dirname(__file__))
     if os.path.exists(os.path.dirname(__file__) + '../GenScene.py'):
@@ -176,22 +162,21 @@ if generate_video:
         with open(os.path.dirname(__file__) + "../GenScene.py", "w") as f:
             f.write(create_file_content(code_response))
     except:
-        st.error("Error: We couldn't write the generated code to the Python file. Please reload the page, or try again later")
+        st.error("Error: Couldn't write the generated code to the Python file. Please reload the page, or try again later")
         st.stop()
 
     COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ../"
 
-    problem_to_render = False
+    render_issue = False
 
     try:
         working_dir = os.path.dirname(__file__) + "../"
         subprocess.run(COMMAND_TO_RENDER, check=True, cwd=working_dir, shell=True)
     except Exception as e:
-        problem_to_render = True
-        st.error(
-            f"Error: LLM generated code that Manim can't process.")
+        render_issue = True
+        st.error(f"Error: LLM generated code that Manim can't process.")
 
-    if not problem_to_render:
+    if not render_issue:
         try:
             video_file = open(os.path.dirname(__file__) + '../GenScene.mp4', 'rb')
             video_bytes = video_file.read()

@@ -1,8 +1,6 @@
 import re
-import anthropic
-import openai
 
-PRE_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Never use other library than Manim/math. Only complete the code block. Use variables with length of maximum 2-3 characters.
+SYS_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Never use other library than Manim/math. Only complete the code block. Use variables with length of maximum 2-3 characters.
 ```
 from manim import *
 from math import *
@@ -13,30 +11,32 @@ class GenScene(Scene):
 ```"""
 
 # Define a function to query GPT-4
-def query_gpt(client, input_text, history=None):
-  history[-1]['content'] = PRE_PROMPT_APPEND + '  ' +  history[-1]['content']
-  stream = client.chat.completions.create(
-    model="text-davinci-003",
+def query_gpt(client, input_text, history=None, stream=False):
+  response = client.chat.completions.create(
+    model="gpt-4-turbo-preview",
     messages=[
-      {"role": m['role'], "content": m['content']}
-      for m in history
+      {"role": m['role'], "content": m['content'] + ' ' + SYS_PROMPT_APPEND if i == len(history)-1 else m['content']} for i, m in enumerate(history)
     ],
+    stream=stream,
   )
-  yield stream
+  return response
 
 # Define a function to query Claude-3
-def query_claude(client, input_text, history=None):
-  print('QUERYING CLAUDE')
-  history[-1]['content'] = PRE_PROMPT_APPEND + '  ' +  history[-1]['content']
-  with client.messages.stream(
+def query_claude(client, input_text, history=None, stream=False):
+  response = client.messages.create(
       model="claude-3-sonnet-20240229",
       max_tokens=2048,
       messages=[
-          {"role": m['role'], "content": m['content']} for m in history
-      ]
-  ) as stream: 
-    for text in stream.text_stream:  
-      yield text 
+        {"role": m['role'], "content": m['content'] + ' ' + SYS_PROMPT_APPEND if i == len(history)-1 else m['content']} for i, m in enumerate(history)
+      ],
+      stream=stream,
+  )
+  return response
+
+def claude_stream_to_generator(stream):
+  for event in stream:
+    if event.type == "content_block_delta":
+      yield event.delta.text
 
 def query_llm():
   new_user_input_ids = tokenizer.encode(tokenizer.eos_token + input_text,
@@ -75,7 +75,6 @@ def extract_construct_code(code_str: str) -> str:
   """
     Extracts the code from the construct method
   """
-  print('IN EXTRACT CODE!')
   pattern = r"def construct\(self\):([\s\S]*)"
   match = re.search(pattern, code_str)
   if match:

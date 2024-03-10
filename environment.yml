@@ -8,7 +8,6 @@ dependencies:
   - streamlit
   - pip
   - pip:
-      - openai==0.26
       - torch 
       - torchvision 
       - torchaudio
