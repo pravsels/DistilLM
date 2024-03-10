@@ -1,6 +1,6 @@
 import re
 
-SYS_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Never use other library than Manim/math. Only complete the code block. Use variables with length of maximum 2-3 characters.
+SYS_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Never use other library than Manim/math. Use variables with length of maximum 2-3 characters.
 ```
 from manim import *
 from math import *
@@ -83,12 +83,12 @@ def extract_construct_code(code_str: str) -> str:
     return ""
 
 
-def create_file_content(code_response: str) -> str:
+def create_file_content(code_response: str, command: str) -> str:
   """
     Creates the content of the file to be written
   """
   return f"""# Manim code generated from LLM
-# Command to generate animation: manim GenScene.py GenScene --format=mp4 --media_dir .
+# {command}
 
 from manim import *
 from math import *

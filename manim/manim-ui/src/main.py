@@ -105,6 +105,7 @@ def toggle():
 
 st.session_state.animate = False
 code_response = ""
+generate_video = ""
 
 ######## CHAT SECTION ########
 
@@ -138,11 +139,13 @@ if prompt := st.chat_input("It's manim time!"):
     st.session_state.messages.append({'role': 'assistant', 'content': ws_response})
 
 
-# Generate animation section 
-generate_video = st.button("Animate", type="primary", 
-                            on_click=toggle,
-                            disabled=st.session_state.animate)
+    # Generate animation section 
+    generate_video = st.button("Animate", type="primary", 
+                                on_click=toggle,
+                                disabled=(st.session_state.animate))
 
+
+COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ."
 if generate_video:
     st.session_state.animate = True 
 
@@ -152,46 +155,42 @@ if generate_video:
     print('code response : ', code_response)
 
     print('CURRENT DIR : ', os.path.dirname(__file__))
-    if os.path.exists(os.path.dirname(__file__) + '../GenScene.py'):
-        os.remove(os.path.dirname(__file__) + '../GenScene.py')
+    if os.path.exists(os.path.dirname(__file__) + '/../GenScene.py'):
+        os.remove(os.path.dirname(__file__) + '/../GenScene.py')
 
-    if os.path.exists(os.path.dirname(__file__) + '../GenScene.mp4'):
-        os.remove(os.path.dirname(__file__) + '../GenScene.mp4')
+    if os.path.exists(os.path.dirname(__file__) + '/../GenScene.mp4'):
+        os.remove(os.path.dirname(__file__) + '/../GenScene.mp4')
 
     try:
-        with open(os.path.dirname(__file__) + "../GenScene.py", "w") as f:
-            f.write(create_file_content(code_response))
-    except:
-        st.error("Error: Couldn't write the generated code to the Python file. Please reload the page, or try again later")
+        with open(os.path.dirname(__file__) + "/../GenScene.py", "w") as f:
+            f.write(create_file_content(code_response, COMMAND_TO_RENDER))
+    except Exception as e:
+        st.warning(e)
         st.stop()
-
-    COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ../"
 
     render_issue = False
 
     try:
-        working_dir = os.path.dirname(__file__) + "../"
-        subprocess.run(COMMAND_TO_RENDER, check=True, cwd=working_dir, shell=True)
+        working_dir = os.path.dirname(__file__) + "/../"
+        result = subprocess.run(COMMAND_TO_RENDER, check=True, cwd=working_dir, shell=True)
     except Exception as e:
         render_issue = True
-        st.error(f"Error: LLM generated code that Manim can't process.")
+        st.warning(e)
 
     if not render_issue:
         try:
-            video_file = open(os.path.dirname(__file__) + '../GenScene.mp4', 'rb')
+            video_file = open(os.path.dirname(__file__) + '/../videos/GenScene/1080p60/GenScene.mp4', 'rb')
             video_bytes = video_file.read()
             st.video(video_bytes)
-        except FileNotFoundError:
-            st.error("Error: generated video file couldn't be found. Please reload the page.")
-        except:
-            st.error(
-            "Error: Something went wrong while displaying video. Please reload the page.")
+        except FileNotFoundError as e:
+            st.warning(e)
+        except Exception as e:
+            st.warning(e)
     try:
-        python_file = open(os.path.dirname(__file__) + '../GenScene.py', 'rb')
+        python_file = open(os.path.dirname(__file__) + '/../GenScene.py', 'rb')
         st.download_button("Download scene in Python",
                             python_file, "GenScene.py", "text/plain")
-    except:
-        st.error(
-            "Error: Something went wrong finding the Python file. Please reload the page.")
+    except Exception as e:
+        st.warning(e)
 
     st.session_state.animate = False
