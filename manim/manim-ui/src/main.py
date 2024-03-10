@@ -139,10 +139,11 @@ if prompt := st.chat_input("It's manim time!"):
     st.session_state.messages.append({'role': 'assistant', 'content': ws_response})
 
 
-    # Generate animation section 
+# Generate animation section 
+if len(st.session_state.messages):
     generate_video = st.button("Animate", type="primary", 
                                 on_click=toggle,
-                                disabled=(st.session_state.animate))
+                                disabled=st.session_state.animate)
 
 
 COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ."
