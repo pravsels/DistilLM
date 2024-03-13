@@ -183,15 +183,15 @@ if generate_video:
             video_file = open(os.path.dirname(__file__) + '/../videos/GenScene/1080p60/GenScene.mp4', 'rb')
             video_bytes = video_file.read()
             st.video(video_bytes)
+            st.download_button(
+                label="Download video of scene",
+                data=video_bytes,
+                file_name="GenScene.mp4",
+                mime="video/mp4"
+            )
         except FileNotFoundError as e:
             st.warning(e)
         except Exception as e:
             st.warning(e)
-    try:
-        python_file = open(os.path.dirname(__file__) + '/../GenScene.py', 'rb')
-        st.download_button("Download scene in Python",
-                            python_file, "GenScene.py", "text/plain")
-    except Exception as e:
-        st.warning(e)
 
     st.session_state.animate = False

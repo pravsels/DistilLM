@@ -1,6 +1,6 @@
 import re
 
-SYS_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Never use other library than Manim/math. Use variables with length of maximum 2-3 characters.
+SYS_PROMPT_APPEND = """Write Manim scripts for animations in Python. Generate code, not text. Never explain code. Never add functions. Never add comments. Never infinte loops. Use variables with length of maximum 2-3 characters. Do all imports other than math/manim inside the construct function. 
 ```
 from manim import *
 from math import *
