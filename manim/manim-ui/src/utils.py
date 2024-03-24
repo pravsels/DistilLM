@@ -7,13 +7,13 @@ from math import *
 
 class GenScene(Scene):
     def construct(self):
-        # Write here
+        # Complete code here
 ```"""
 
 # Define a function to query GPT-4
-def query_gpt(client, input_text, history=None, stream=False):
+def query_gpt(client, model_name, history=None, stream=False):
   response = client.chat.completions.create(
-    model="gpt-4-turbo-preview",
+    model=model_name,
     messages=[
       {"role": m['role'], "content": m['content'] + ' ' + SYS_PROMPT_APPEND if i == len(history)-1 else m['content']} for i, m in enumerate(history)
     ],
@@ -22,9 +22,9 @@ def query_gpt(client, input_text, history=None, stream=False):
   return response
 
 # Define a function to query Claude-3
-def query_claude(client, input_text, history=None, stream=False):
+def query_claude(client, model_name, history=None, stream=False):
   response = client.messages.create(
-      model="claude-3-sonnet-20240229",
+      model=model_name,
       max_tokens=2048,
       messages=[
         {"role": m['role'], "content": m['content'] + ' ' + SYS_PROMPT_APPEND if i == len(history)-1 else m['content']} for i, m in enumerate(history)

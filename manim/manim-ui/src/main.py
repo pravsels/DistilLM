@@ -14,25 +14,33 @@ st.set_page_config(
     page_title="DistilLM",
 )
 
-# Add a selectbox for the user to choose the model
-st.session_state.model_choice = st.selectbox("Choose the model to use", ["Claude",
-                                                        "GPT",
-                                                        "Local Model"])
+model_choices_dict = {
+    # "Claude Haiku": "claude-3-haiku-20240307",
+    "Claude Sonnet": "claude-3-sonnet-20240229",
+    "Claude Opus": "claude-3-opus-20240229",
+    "GPT 3.5 Turbo": "gpt-3.5-turbo-0125",
+    "GPT 4 Turbo": "gpt-4-turbo-preview",
+    "Local Model": "deepseek-ai/deepseek-coder-6.7b-instruct"
+}
 
-def query_llm(input_text, history=None):
-    if st.session_state.model_choice == "Local Model":
+# Add a selectbox for the user to choose the model
+st.session_state.model_choice = st.selectbox("Choose the model to use", 
+                                             list(model_choices_dict.keys()))
+
+def query_llm(input_text, model_name, history=None):
+    if "Local Model" in model_name:
         reply_text, history = query_llm(input_text)
     return reply_text, history
 
-def query_llm_api(input_text, history=None, stream=False):
-    if st.session_state.model_choice == "GPT":
+def query_llm_api(model_name, history=None, stream=False):
+    if "gpt" in model_name:
         return query_gpt(openai_client, 
-                         input_text, 
+                         model_name,
                          history, 
                          stream)
-    elif st.session_state.model_choice == "Claude":
+    elif "claude" in model_name:
         return query_claude(anthropic_client, 
-                            input_text, 
+                            model_name,
                             history, 
                             stream)
 
@@ -44,8 +52,8 @@ if os.path.exists(api_keys_file):
 else:
     api_keys = {}
 
-if st.session_state.model_choice == "Local Model":
-    base_model = "deepseek-ai/deepseek-coder-6.7b-instruct"
+if "Local Model" in st.session_state.model_choice:
+    base_model = model_choices_dict[st.session_state.model_choice]
     adapter_names = ["pravsels/deepseek-coder-6.7b-instruct_finetuned_manim_pile_context_FIM_1024"]
     adapter_index = 0
     adapter_name = adapter_names[adapter_index]
@@ -58,7 +66,7 @@ if st.session_state.model_choice == "Local Model":
 
     query_func = query_llm
 
-elif st.session_state.model_choice == "GPT":
+elif "GPT" in st.session_state.model_choice:
     query_func = query_llm_api
     # Check if OpenAI API key is already saved
     if 'openai_api_key' not in api_keys:
@@ -77,7 +85,7 @@ elif st.session_state.model_choice == "GPT":
         from openai import OpenAI
         openai_client = OpenAI(api_key=openai_api_key)
 
-elif st.session_state.model_choice == "Claude":
+elif "Claude" in st.session_state.model_choice:
     query_func = query_llm_api
     # Check if Anthropic API key is already saved
     if 'anthropic_api_key' not in api_keys:
@@ -127,10 +135,12 @@ if prompt := st.chat_input("It's manim time!"):
 
     # response from bot 
     with st.chat_message('assistant'):
-        response = query_func(prompt, st.session_state.messages, stream=True)
-        if st.session_state.model_choice == 'GPT':
+        response = query_func(model_choices_dict[st.session_state.model_choice], 
+                              st.session_state.messages, 
+                              stream=True)
+        if 'GPT' in st.session_state.model_choice:
             ws_response = st.write_stream(response)
-        elif st.session_state.model_choice == 'Claude':
+        elif 'Claude' in st.session_state.model_choice:
             # Convert Claude's stream to a generator
             response_generator = claude_stream_to_generator(response)
             ws_response = st.write_stream(response_generator)
