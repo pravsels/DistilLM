@@ -162,10 +162,8 @@ if generate_video:
 
     latest_reply = st.session_state.messages[-1]['content']
 
-    code_response = extract_construct_code(extract_code(latest_reply))
-    print('code response : ', code_response)
+    code_response = extract_code(latest_reply)
 
-    print('CURRENT DIR : ', os.path.dirname(__file__))
     if os.path.exists(os.path.dirname(__file__) + '/../GenScene.py'):
         os.remove(os.path.dirname(__file__) + '/../GenScene.py')
 
@@ -183,7 +181,10 @@ if generate_video:
 
     try:
         working_dir = os.path.dirname(__file__) + "/../"
-        result = subprocess.run(COMMAND_TO_RENDER, check=True, cwd=working_dir, shell=True)
+        result = subprocess.run(COMMAND_TO_RENDER, 
+                                check=True, 
+                                cwd=working_dir, 
+                                shell=True)
     except Exception as e:
         render_issue = True
         st.warning(e)
