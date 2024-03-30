@@ -1,6 +1,7 @@
 import os
 import subprocess
 import streamlit as st
+
 from manim import *
 from PIL import Image
 from utils import *
@@ -111,7 +112,12 @@ elif "Claude" in st.session_state.model_choice:
 def toggle():
     st.session_state.animate = not st.session_state.animate
 
+def toggle_code_editor():
+    st.session_state.show_code_editor = not st.session_state.show_code_editor
+
 st.session_state.animate = False
+st.session_state.show_code_editor = False 
+response_dict = ""
 code_response = ""
 generate_video = ""
 
@@ -151,18 +157,29 @@ if prompt := st.chat_input("It's manim time!"):
 
 # Generate animation section 
 if len(st.session_state.messages):
-    generate_video = st.button("Animate", type="primary", 
-                                on_click=toggle,
-                                disabled=st.session_state.animate)
+    latest_reply = st.session_state.messages[-1]['content']
+    code_response = extract_code(latest_reply)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        generate_video = st.button("Animate", type="primary", 
+                                   on_click=toggle,
+                                   disabled=st.session_state.animate)
+    with col2:
+        editing_code = st.button('Edit Code', 
+                                 on_click=toggle_code_editor)
+
+    if editing_code:
+        st.session_state.editable_code = st.text_area("Edit the generated code", 
+                                                      value=code_response, 
+                                                      height=400)
+    else:
+        st.session_state.editable_code = code_response
 
 
 COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ."
 if generate_video:
     st.session_state.animate = True 
-
-    latest_reply = st.session_state.messages[-1]['content']
-
-    code_response = extract_code(latest_reply)
 
     if os.path.exists(os.path.dirname(__file__) + '/../GenScene.py'):
         os.remove(os.path.dirname(__file__) + '/../GenScene.py')
@@ -171,8 +188,10 @@ if generate_video:
         os.remove(os.path.dirname(__file__) + '/../GenScene.mp4')
 
     try:
+        code_to_render = st.session_state.editable_code
         with open(os.path.dirname(__file__) + "/../GenScene.py", "w") as f:
-            f.write(create_file_content(code_response, COMMAND_TO_RENDER))
+            f.write(create_file_content(code_to_render, COMMAND_TO_RENDER))
+
     except Exception as e:
         st.warning(e)
         st.stop()
