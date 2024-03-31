@@ -115,11 +115,14 @@ def toggle():
 def toggle_code_editor():
     st.session_state.show_code_editor = not st.session_state.show_code_editor
 
+def update_code_from_text_area():  
+    st.session_state.code = st.session_state.code_edit_text_area
+
 st.session_state.animate = False
 st.session_state.show_code_editor = False 
-response_dict = ""
 code_response = ""
 generate_video = ""
+editable_code = ""
 
 ######## CHAT SECTION ########
 
@@ -158,7 +161,7 @@ if prompt := st.chat_input("It's manim time!"):
 # Generate animation section 
 if len(st.session_state.messages):
     latest_reply = st.session_state.messages[-1]['content']
-    code_response = extract_code(latest_reply)
+    extract_code(latest_reply)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -170,11 +173,11 @@ if len(st.session_state.messages):
                                  on_click=toggle_code_editor)
 
     if editing_code:
-        st.session_state.editable_code = st.text_area("Edit the generated code", 
-                                                      value=code_response, 
-                                                      height=400)
-    else:
-        st.session_state.editable_code = code_response
+        editable_code = st.text_area("Edit the generated code", 
+                                     value=st.session_state.code, 
+                                     key="code_edit_text_area",
+                                     on_change=update_code_from_text_area,
+                                     height=400)
 
 
 COMMAND_TO_RENDER = "manim GenScene.py GenScene --format=mp4 --media_dir ."
@@ -187,10 +190,12 @@ if generate_video:
     if os.path.exists(os.path.dirname(__file__) + '/../GenScene.mp4'):
         os.remove(os.path.dirname(__file__) + '/../GenScene.mp4')
 
+    st.warning(st.session_state.code)
+
     try:
-        code_to_render = st.session_state.editable_code
         with open(os.path.dirname(__file__) + "/../GenScene.py", "w") as f:
-            f.write(create_file_content(code_to_render, COMMAND_TO_RENDER))
+            f.write(create_file_content(st.session_state.code, 
+                                        COMMAND_TO_RENDER))
 
     except Exception as e:
         st.warning(e)
